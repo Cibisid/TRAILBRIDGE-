@@ -1,0 +1,41 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# Docker volumes (local)
+postgres_data/
+redis_data/
+
+# ML Models (too large for git — use S3)
+*.bin
+*.pt
+*.pkl
+models/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

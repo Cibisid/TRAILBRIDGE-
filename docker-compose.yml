@@ -1,0 +1,223 @@
+version: "3.9"
+
+# TrialBridge — Local Development Stack
+# Runs the entire application with one command: docker compose up --build
+# Every service is isolated, reproducible, and matches production behavior.
+
+services:
+
+  # -----------------------------------------------
+  # PostgreSQL with pgvector extension
+  # -----------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    # pgvector/pgvector is the official PostgreSQL image with pgvector pre-installed
+    # This is the SAME image we'll use in production (AWS RDS supports pgvector)
+    container_name: trialbridge_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trialbridge}
+      POSTGRES_USER: ${POSTGRES_USER:-trialbridge_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trialbridge_user} -d ${POSTGRES_DB:-trialbridge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trialbridge_network
+
+  # -----------------------------------------------
+  # Redis — caching + Celery broker
+  # -----------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: trialbridge_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-devredispass}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-devredispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trialbridge_network
+
+  # -----------------------------------------------
+  # FastAPI Backend
+  # -----------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+      target: development
+    container_name: trialbridge_backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Override specific vars for Docker networking
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-trialbridge_user}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-trialbridge}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-devredispass}@redis:6379/0
+    volumes:
+      - ./backend:/app/backend  # Hot reload: code changes reflect immediately
+      - ./scripts:/app/scripts
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      uvicorn backend.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --reload-dir /app/backend
+      --log-level info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - trialbridge_network
+
+  # -----------------------------------------------
+  # Celery Worker — async background tasks
+  # -----------------------------------------------
+  celery_worker:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+      target: development
+    container_name: trialbridge_celery
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-trialbridge_user}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_DB:-trialbridge}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-devredispass}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-devredispass}@redis:6379/2
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A backend.tasks worker --loglevel=info --concurrency=2
+    networks:
+      - trialbridge_network
+
+  # -----------------------------------------------
+  # Streamlit Frontend
+  # -----------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend.Dockerfile
+    container_name: trialbridge_frontend
+    restart: unless-stopped
+    environment:
+      API_URL: http://backend:8000
+    volumes:
+      - ./frontend:/app/frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: streamlit run /app/frontend/app.py --server.port=8501 --server.address=0.0.0.0
+    networks:
+      - trialbridge_network
+
+  # -----------------------------------------------
+  # Nginx — reverse proxy (mirrors production)
+  # -----------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: trialbridge_nginx
+    restart: unless-stopped
+    volumes:
+      - ./infra/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - trialbridge_network
+
+  # -----------------------------------------------
+  # Prometheus — metrics collection
+  # -----------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: trialbridge_prometheus
+    restart: unless-stopped
+    volumes:
+      - ./infra/docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+    networks:
+      - trialbridge_network
+
+  # -----------------------------------------------
+  # Grafana — metrics visualization
+  # -----------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: trialbridge_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - trialbridge_network
+
+
+# -----------------------------------------------
+# Volumes — persistent data across container restarts
+# -----------------------------------------------
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+
+# -----------------------------------------------
+# Network — isolated bridge network for all services
+# -----------------------------------------------
+networks:
+  trialbridge_network:
+    driver: bridge
