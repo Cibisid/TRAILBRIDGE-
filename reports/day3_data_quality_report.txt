@@ -1,0 +1,146 @@
+============================================================
+TRIALBRIDGE — DATA QUALITY REPORT
+============================================================
+
+Total trials in database: 2,344
+
+--- MISSING DATA ANALYSIS ---
+  Eligibility criteria           missing: 204 (8.7%)
+  Minimum age                    missing: 413 (17.6%)
+  Maximum age                    missing: 1,442 (61.5%)
+  Brief summary                  missing: 195 (8.3%)
+  Sponsor                        missing: 0 (0.0%)
+  Enrollment target              missing: 1,313 (56.0%)
+
+--- BREAKDOWN BY STATUS ---
+  COMPLETED                      1,253 ( 53.5%) ██████████████████████████
+  UNKNOWN                          696 ( 29.7%) ██████████████
+  WITHDRAWN                        294 ( 12.5%) ██████
+  TERMINATED                        84 (  3.6%) █
+  SUSPENDED                         15 (  0.6%) 
+  RECRUITING                         1 (  0.0%) 
+  NOT_YET_RECRUITING                 1 (  0.0%) 
+
+--- BREAKDOWN BY PHASE ---
+  UNKNOWN                650 ( 27.7%) █████████████
+  NA                     549 ( 23.4%) ███████████
+  PHASE2                 385 ( 16.4%) ████████
+  PHASE1                 359 ( 15.3%) ███████
+  PHASE3                 245 ( 10.5%) █████
+  PHASE4                 154 (  6.6%) ███
+  EARLY_PHASE1             2 (  0.1%) 
+
+--- AGE RANGE ANALYSIS ---
+  Minimum age range : 0 — 65 years
+  Maximum age range : 2 — 130 years
+  Avg minimum age   : 18 years
+  Avg maximum age   : 58 years
+  Trials with no upper age limit: 1,085
+
+  Age group distribution (by minimum age):
+    Children (0-17)      415
+    Adults (18-64)       1,502
+    Seniors (65+)        14
+
+--- TOP 20 CONDITIONS IN DATABASE ---
+   1. HIV Infections                            647 ██████████████████████████████
+   2. Healthy                                    52 ██████████
+   3. Cytomegalovirus Retinitis                  35 ███████
+   4. Sarcoma, Kaposi                            25 █████
+   5. Pneumonia, Pneumocystis Carinii            23 ████
+   6. Breast Cancer                              21 ████
+   7. Cancer                                     17 ███
+   8. Obesity                                    17 ███
+   9. Cytopenias                                 16 ███
+  10. HIV Seronegativity                         16 ███
+  11. Depression                                 15 ███
+  12. Meningitis, Cryptococcal                   15 ███
+  13. Prostate Cancer                            15 ███
+  14. Pain                                       15 ███
+  15. Mycobacterium Avium-Intracellulare Infec   14 ██
+  16. Diabetes Mellitus                          14 ██
+  17. Lymphoma                                   14 ██
+  18. Multiple Myeloma                           14 ██
+  19. Asthma                                     14 ██
+  20. Cytomegalovirus Infections                 14 ██
+
+--- ELIGIBILITY CRITERIA PATTERN ANALYSIS ---
+(These are the patterns the NLP parser must handle in Week 2)
+
+  Trials with eligibility criteria: 2,061
+  Contains 'Inclusion Criteria'                      1,892 (91.8%)
+  Contains 'Exclusion Criteria'                      1,791 (86.9%)
+  Contains age reference                             1,203 (58.4%)
+  Contains lab value (numbers with %)                 253 (12.3%)
+  Contains negation (no, not, without, except)       1,104 (53.6%)
+  Contains time constraint (within X months/years)    445 (21.6%)
+  Contains prior treatment reference                 1,332 (64.6%)
+  Contains OR logic                                  1,663 (80.7%)
+  Contains AND logic                                 1,400 (67.9%)
+  Contains pregnancy exclusion                        189 (9.2%)
+  Contains lab test reference (HbA1c, eGFR, ALT etc)  332 (16.1%)
+  Very long criteria (>2000 chars)                    543 (26.3%)
+
+--- 10 HARDEST ELIGIBILITY CRITERIA EXAMPLES ---
+(Real sentences from your database — this is what Week 2 must parse)
+
+  [1] NCT00244686
+      "non-biologic, excluding mepolizumab) within the past 30 days or 5 drug half-lives"
+
+  [2] NCT00215839
+      "11 Alpha-fetoprotein (AFP) value within normal limits obtained within the prior year"
+
+  [3] NCT01204827
+      "Use of other investigational drugs at the time of enrollment, or within 30 days or 5"
+
+  [4] NCT00215891
+      "8 Alpha-fetoprotein (AFP) value within normal limits obtained within the prior year"
+
+  [5] NCT01240928
+      "-  Prior bilateral oophorectomy or prior radiation castration with amenorrhea for at"
+
+  [6] NCT00627835
+      "Inclusion Criteria: Treatment Group 1 (Cohorts 1 & 2) - Radiation and Sorafenib Only"
+
+  [7] NCT00215865
+      "7 Alpha-fetoprotein (AFP) value within normal limits obtained within the prior year"
+
+  [8] NCT00487799
+      "(Troponin I) >2 times the upper limit of normal within 6 hours prior to randomization"
+
+  [9] NCT00280839
+      "Subjects who are daily smokers and smoke an average of ≥10 cigarettes/day within the 2"
+
+  [10] NCT00000679
+      "medication, prior myocardial infarct, or history of angina or ischemia changes on ECG"
+
+
+--- NLP PARSING CHALLENGES — WEEK 2 BLUEPRINT ---
+
+  Based on the data analysis above, here are the 6 core
+  challenges the NLP pipeline must solve:
+
+  1. NEGATION DETECTION
+     "No history of X" must NOT flag X as a condition.
+     Tool: negspaCy library on top of scispaCy.
+
+  2. TEMPORAL CONSTRAINTS
+     "Within 6 months of enrollment" requires date math.
+     Pattern: within + number + time_unit.
+
+  3. COMPOUND LOGIC
+     Criteria use AND/OR with nested conditions.
+     Must parse as a logic tree, not flat list.
+
+  4. LAB VALUE THRESHOLDS
+     "HbA1c > 7.5%" requires extracting entity + operator + value.
+     Tool: custom regex + scispaCy NER.
+
+  5. PRIOR TREATMENT REFERENCES
+     "Prior platinum-based therapy" maps to drug class, not drug name.
+     Requires medical ontology (SNOMED-CT) lookup.
+
+  6. CONDITIONAL EXCEPTIONS
+     "Unless disease progression was documented..."
+     Requires dependency parsing to link exception to main clause.
+    
