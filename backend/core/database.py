@@ -100,7 +100,7 @@ async def init_db() -> None:
         # Enable pgvector before creating tables
         await enable_pgvector(conn)
         # Import all models so Base knows about them
-        from backend.models import audit, match, patient, trial  # noqa: F401
+        from backend.models import Trial, PatientProfile, MatchResult, AuditLog  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created/verified")
 

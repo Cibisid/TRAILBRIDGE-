@@ -1,8 +1,4 @@
-"""TrialBridge — Patient Endpoints (stub for Day 1)"""
-from fastapi import APIRouter
-router = APIRouter()
+"""TrialBridge — Patient Endpoints"""
+from backend.nlp.extractor_v2 import router as nlp_router
 
-@router.post("/parse-patient")
-async def parse_patient():
-    """NLP extraction endpoint. Full implementation: Week 2."""
-    return {"message": "Patient parsing endpoint — implementation coming Week 2"}
+router = nlp_router
