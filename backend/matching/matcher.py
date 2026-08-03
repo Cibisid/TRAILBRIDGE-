@@ -26,8 +26,8 @@ from backend.nlp.extractor_v2 import PatientProfile, PatientProfileExtractor
 DB_URL = "postgresql://trialbridge_user:devpassword@localhost:5432/trialbridge"
 MODEL_NAME = "all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
-SEMANTIC_CANDIDATES = 50   # How many trials to pull from vector search
-FINAL_RESULTS = 10         # How many to return after rules filtering
+SEMANTIC_CANDIDATES = 50  # How many trials to pull from vector search
+FINAL_RESULTS = 10  # How many to return after rules filtering
 
 
 # -----------------------------------------------
@@ -36,6 +36,7 @@ FINAL_RESULTS = 10         # How many to return after rules filtering
 @dataclass
 class TrialMatch:
     """A single trial match result with scoring breakdown."""
+
     nct_id: str
     title: str
     status: str
@@ -45,12 +46,12 @@ class TrialMatch:
     eligibility_criteria_raw: str | None
 
     # Scores
-    semantic_score: float           # 0-1: how semantically similar
-    eligibility_score: float        # 0-1: how well eligibility rules match
-    composite_score: float          # 0-1: final combined score
+    semantic_score: float  # 0-1: how semantically similar
+    eligibility_score: float  # 0-1: how well eligibility rules match
+    composite_score: float  # 0-1: final combined score
 
     # Eligibility breakdown
-    eligibility_status: str         # ELIGIBLE | LIKELY_ELIGIBLE | NEEDS_REVIEW | INELIGIBLE
+    eligibility_status: str  # ELIGIBLE | LIKELY_ELIGIBLE | NEEDS_REVIEW | INELIGIBLE
     inclusion_met: list[str] = field(default_factory=list)
     exclusion_flags: list[str] = field(default_factory=list)
     needs_verification: list[str] = field(default_factory=list)
@@ -107,13 +108,9 @@ class EligibilityRulesEngine:
 
         if patient.age is not None:
             if min_age is not None and patient.age < min_age:
-                exclusion_flags.append(
-                    f"Patient age {patient.age} below trial minimum {min_age}"
-                )
+                exclusion_flags.append(f"Patient age {patient.age} below trial minimum {min_age}")
             elif max_age is not None and patient.age > max_age:
-                exclusion_flags.append(
-                    f"Patient age {patient.age} above trial maximum {max_age}"
-                )
+                exclusion_flags.append(f"Patient age {patient.age} above trial maximum {max_age}")
             else:
                 if min_age or max_age:
                     inclusion_met.append(f"Age {patient.age} within range")
@@ -149,17 +146,16 @@ class EligibilityRulesEngine:
         if patient.primary_diagnosis and trial_conditions:
             patient_dx_lower = patient.primary_diagnosis.lower()
             matched_conditions = [
-                c for c in trial_conditions
+                c
+                for c in trial_conditions
                 if (
-                    patient_dx_lower in c.lower() or
-                    c.lower() in patient_dx_lower or
-                    self._condition_overlap(patient_dx_lower, c.lower())
+                    patient_dx_lower in c.lower()
+                    or c.lower() in patient_dx_lower
+                    or self._condition_overlap(patient_dx_lower, c.lower())
                 )
             ]
             if matched_conditions:
-                inclusion_met.append(
-                    f"Condition match: {matched_conditions[0]}"
-                )
+                inclusion_met.append(f"Condition match: {matched_conditions[0]}")
             else:
                 needs_verification.append(
                     f"Condition '{patient.primary_diagnosis}' may not match "
@@ -288,7 +284,8 @@ class TrialMatchingEngine:
         )[0]
 
         # Step 3: Semantic search — get top 50 candidates from pgvector
-        candidates = await db_conn.fetch("""
+        candidates = await db_conn.fetch(
+            """
             SELECT
                 nct_id, title, status, phase, sponsor,
                 conditions, eligibility_criteria_raw,
@@ -298,7 +295,10 @@ class TrialMatchingEngine:
             WHERE embedding IS NOT NULL
             ORDER BY embedding <=> $1::vector
             LIMIT $2
-        """, str(query_embedding.tolist()), SEMANTIC_CANDIDATES)
+        """,
+            str(query_embedding.tolist()),
+            SEMANTIC_CANDIDATES,
+        )
 
         if not candidates:
             return []
@@ -383,7 +383,7 @@ async def run_test():
                 Currently on Metformin 1000mg. HbA1c 8.9%, eGFR 72.
                 No prior insulin therapy. No history of cardiovascular disease.
                 Blood pressure 138/82. BMI 31.2.
-            """
+            """,
         },
         {
             "label": "Cancer patient",
@@ -392,7 +392,7 @@ async def run_test():
                 Previously treated with carboplatin. Currently receiving pembrolizumab.
                 No history of diabetes or hypertension.
                 ALT 42, AST 38, creatinine 0.9.
-            """
+            """,
         },
         {
             "label": "Heart failure patient",
@@ -401,7 +401,7 @@ async def run_test():
                 History of hypertension and atrial fibrillation.
                 Currently on lisinopril, warfarin, and metformin.
                 HbA1c 7.2. eGFR 58. Denies history of stroke.
-            """
+            """,
         },
     ]
 
@@ -410,11 +410,9 @@ async def run_test():
         print(f"PATIENT: {test['label']}")
         print(f"{'─' * 65}")
 
-        profile, matches = await engine.match_from_note(
-            test["note"], conn, n_results=5
-        )
+        profile, matches = await engine.match_from_note(test["note"], conn, n_results=5)
 
-        print(f"Extracted Profile:")
+        print("Extracted Profile:")
         print(f"  Age: {profile.age} | Sex: {profile.sex}")
         print(f"  Diagnosis: {profile.primary_diagnosis}")
         print(f"  Medications: {profile.current_medications}")
@@ -425,9 +423,11 @@ async def run_test():
         for i, match in enumerate(matches, 1):
             print(f"\n  [{i}] {match.nct_id} — {match.eligibility_status}")
             print(f"      Title: {match.title[:65]}")
-            print(f"      Scores: semantic={match.semantic_score:.3f} | "
-                  f"eligibility={match.eligibility_score:.3f} | "
-                  f"composite={match.composite_score:.3f}")
+            print(
+                f"      Scores: semantic={match.semantic_score:.3f} | "
+                f"eligibility={match.eligibility_score:.3f} | "
+                f"composite={match.composite_score:.3f}"
+            )
             if match.inclusion_met:
                 print(f"      ✅ Met: {match.inclusion_met[0]}")
             if match.exclusion_flags:

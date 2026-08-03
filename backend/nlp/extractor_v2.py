@@ -10,7 +10,9 @@ New: FastAPI endpoint POST /api/v1/parse-patient
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 
 # -----------------------------------------------
@@ -77,21 +79,35 @@ class NegationExtractor:
     """Detects negated conditions first so they can be excluded."""
 
     NEGATION_TRIGGERS = [
-        r'no\s+(?:history\s+of\s+|known\s+)?(.+?)(?:\.|,|;|$)',
-        r'denies\s+(.+?)(?:\.|,|;|$)',
-        r'without\s+(.+?)(?:\.|,|;|$)',
-        r'never\s+(?:had\s+|diagnosed\s+with\s+)?(.+?)(?:\.|,|;|$)',
-        r'absence\s+of\s+(.+?)(?:\.|,|;|$)',
-        r'negative\s+for\s+(.+?)(?:\.|,|;|$)',
+        r"no\s+(?:history\s+of\s+|known\s+)?(.+?)(?:\.|,|;|$)",
+        r"denies\s+(.+?)(?:\.|,|;|$)",
+        r"without\s+(.+?)(?:\.|,|;|$)",
+        r"never\s+(?:had\s+|diagnosed\s+with\s+)?(.+?)(?:\.|,|;|$)",
+        r"absence\s+of\s+(.+?)(?:\.|,|;|$)",
+        r"negative\s+for\s+(.+?)(?:\.|,|;|$)",
     ]
 
     CONDITIONS = [
-        "hypertension", "diabetes", "cancer", "heart disease",
-        "cardiovascular disease", "stroke", "renal disease",
-        "liver disease", "hepatitis", "hiv", "tuberculosis",
-        "seizures", "epilepsy", "depression", "anxiety",
-        "insulin therapy", "chemotherapy", "radiation",
-        "surgery", "transplant",
+        "hypertension",
+        "diabetes",
+        "cancer",
+        "heart disease",
+        "cardiovascular disease",
+        "stroke",
+        "renal disease",
+        "liver disease",
+        "hepatitis",
+        "hiv",
+        "tuberculosis",
+        "seizures",
+        "epilepsy",
+        "depression",
+        "anxiety",
+        "insulin therapy",
+        "chemotherapy",
+        "radiation",
+        "surgery",
+        "transplant",
     ]
 
     def extract(self, text: str) -> list[str]:
@@ -161,10 +177,7 @@ class DiagnosisExtractor:
         for condition in self.KNOWN_CONDITIONS:
             if condition in text_lower:
                 # BUG FIX 1: Skip if this condition is negated
-                is_negated = any(
-                    neg in condition or condition in neg
-                    for neg in negated_conditions
-                )
+                is_negated = any(neg in condition or condition in neg for neg in negated_conditions)
                 if not is_negated:
                     found.append(condition.title())
 
@@ -177,9 +190,7 @@ class DiagnosisExtractor:
         deduplicated = []
         for condition in found:
             is_substring_of_another = any(
-                condition.lower() in other.lower()
-                for other in found
-                if other != condition
+                condition.lower() in other.lower() for other in found if other != condition
             )
             if not is_substring_of_another:
                 deduplicated.append(condition)
@@ -195,10 +206,10 @@ class DiagnosisExtractor:
 # -----------------------------------------------
 class AgeExtractor:
     PATTERNS = [
-        r'(\d+)\s*[-\s]?\s*year[s]?\s*[-\s]?\s*old',
-        r'(\d+)\s*y/?o\b',
-        r'\bage[d]?\s*:?\s*(\d+)',
-        r'(\d+)\s*years?\s*of\s*age',
+        r"(\d+)\s*[-\s]?\s*year[s]?\s*[-\s]?\s*old",
+        r"(\d+)\s*y/?o\b",
+        r"\bage[d]?\s*:?\s*(\d+)",
+        r"(\d+)\s*years?\s*of\s*age",
     ]
 
     def extract(self, text: str) -> int | None:
@@ -212,8 +223,8 @@ class AgeExtractor:
 
 
 class SexExtractor:
-    MALE_PATTERNS = [r'\bmale\b', r'\bman\b', r'\bgentleman\b', r'\bhe\b', r'\bhis\b']
-    FEMALE_PATTERNS = [r'\bfemale\b', r'\bwoman\b', r'\blady\b', r'\bshe\b', r'\bher\b']
+    MALE_PATTERNS = [r"\bmale\b", r"\bman\b", r"\bgentleman\b", r"\bhe\b", r"\bhis\b"]
+    FEMALE_PATTERNS = [r"\bfemale\b", r"\bwoman\b", r"\blady\b", r"\bshe\b", r"\bher\b"]
 
     def extract(self, text: str) -> str | None:
         text_lower = text.lower()
@@ -228,16 +239,16 @@ class SexExtractor:
 
 class LabValueExtractor:
     LAB_PATTERNS = {
-        "HbA1c": [r'hba1c\s*[:of]?\s*(\d+\.?\d*)', r'a1c\s*[:of]?\s*(\d+\.?\d*)'],
-        "eGFR": [r'egfr\s*[:of]?\s*(\d+\.?\d*)'],
-        "creatinine": [r'creatinine\s*[:of]?\s*(\d+\.?\d*)'],
-        "ALT": [r'\balt\s*[:of]?\s*(\d+\.?\d*)'],
-        "AST": [r'\bast\s*[:of]?\s*(\d+\.?\d*)'],
-        "hemoglobin": [r'\bhgb\s*[:of]?\s*(\d+\.?\d*)', r'\bhemoglobin\s*[:of]?\s*(\d+\.?\d*)\s*g'],
-        "platelets": [r'platelet[s]?\s*[:of]?\s*(\d+\.?\d*)'],
-        "WBC": [r'\bwbc\s*[:of]?\s*(\d+\.?\d*)'],
-        "BMI": [r'\bbmi\s*[:of]?\s*(\d+\.?\d*)'],
-        "blood_pressure_systolic": [r'bp\s*[:of]?\s*(\d+)\s*/\s*\d+'],
+        "HbA1c": [r"hba1c\s*[:of]?\s*(\d+\.?\d*)", r"a1c\s*[:of]?\s*(\d+\.?\d*)"],
+        "eGFR": [r"egfr\s*[:of]?\s*(\d+\.?\d*)"],
+        "creatinine": [r"creatinine\s*[:of]?\s*(\d+\.?\d*)"],
+        "ALT": [r"\balt\s*[:of]?\s*(\d+\.?\d*)"],
+        "AST": [r"\bast\s*[:of]?\s*(\d+\.?\d*)"],
+        "hemoglobin": [r"\bhgb\s*[:of]?\s*(\d+\.?\d*)", r"\bhemoglobin\s*[:of]?\s*(\d+\.?\d*)\s*g"],
+        "platelets": [r"platelet[s]?\s*[:of]?\s*(\d+\.?\d*)"],
+        "WBC": [r"\bwbc\s*[:of]?\s*(\d+\.?\d*)"],
+        "BMI": [r"\bbmi\s*[:of]?\s*(\d+\.?\d*)"],
+        "blood_pressure_systolic": [r"bp\s*[:of]?\s*(\d+)\s*/\s*\d+"],
     }
 
     def extract(self, text: str) -> dict[str, float]:
@@ -260,13 +271,36 @@ class MedicationExtractor:
     NEGATION_CONTEXT = ["no ", "not ", "without ", "never "]
 
     KNOWN_DRUGS = [
-        "metformin", "insulin", "glipizide", "glimepiride", "sitagliptin",
-        "empagliflozin", "liraglutide", "lisinopril", "amlodipine",
-        "atorvastatin", "simvastatin", "aspirin", "warfarin", "apixaban",
-        "prednisone", "dexamethasone", "carboplatin", "cisplatin",
-        "paclitaxel", "docetaxel", "pembrolizumab", "nivolumab",
-        "bevacizumab", "tamoxifen", "letrozole", "methotrexate",
-        "hydroxychloroquine", "sertraline", "fluoxetine", "omeprazole",
+        "metformin",
+        "insulin",
+        "glipizide",
+        "glimepiride",
+        "sitagliptin",
+        "empagliflozin",
+        "liraglutide",
+        "lisinopril",
+        "amlodipine",
+        "atorvastatin",
+        "simvastatin",
+        "aspirin",
+        "warfarin",
+        "apixaban",
+        "prednisone",
+        "dexamethasone",
+        "carboplatin",
+        "cisplatin",
+        "paclitaxel",
+        "docetaxel",
+        "pembrolizumab",
+        "nivolumab",
+        "bevacizumab",
+        "tamoxifen",
+        "letrozole",
+        "methotrexate",
+        "hydroxychloroquine",
+        "sertraline",
+        "fluoxetine",
+        "omeprazole",
         "levothyroxine",
     ]
 
@@ -276,7 +310,7 @@ class MedicationExtractor:
         for drug in self.KNOWN_DRUGS:
             if drug in text_lower:
                 idx = text_lower.index(drug)
-                context = text_lower[max(0, idx - 60):idx]
+                context = text_lower[max(0, idx - 60) : idx]
                 if any(n in context for n in self.NEGATION_CONTEXT):
                     continue
                 elif any(p in context for p in self.PRIOR_CONTEXT):
@@ -314,9 +348,7 @@ class PatientProfileExtractor:
         profile.negated_conditions = self.neg_extractor.extract(note)
 
         # Pass negated conditions to diagnosis extractor
-        primary_dx, comorbidities = self.dx_extractor.extract(
-            note, profile.negated_conditions
-        )
+        primary_dx, comorbidities = self.dx_extractor.extract(note, profile.negated_conditions)
         profile.primary_diagnosis = primary_dx
         profile.comorbidities = comorbidities
 
@@ -339,9 +371,7 @@ class PatientProfileExtractor:
         profile.extraction_warnings = warnings
 
         critical = [profile.age, profile.sex, profile.primary_diagnosis]
-        profile.extraction_confidence = sum(
-            1 for f in critical if f is not None
-        ) / len(critical)
+        profile.extraction_confidence = sum(1 for f in critical if f is not None) / len(critical)
 
         return profile
 
@@ -349,9 +379,6 @@ class PatientProfileExtractor:
 # -----------------------------------------------
 # FastAPI Endpoint
 # -----------------------------------------------
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
 router = APIRouter()
 _extractor = PatientProfileExtractor()
 
@@ -386,8 +413,7 @@ class ParsePatientResponse(BaseModel):
 async def parse_patient(request: ParsePatientRequest) -> ParsePatientResponse:
     if not request.note or len(request.note.strip()) < 10:
         raise HTTPException(
-            status_code=400,
-            detail="Note is too short. Please provide a complete clinical note."
+            status_code=400, detail="Note is too short. Please provide a complete clinical note."
         )
 
     profile = _extractor.extract(request.note)
@@ -407,7 +433,7 @@ def run_tests():
                 45 y/o male with breast cancer diagnosed 6 months ago.
                 Previously treated with carboplatin. Currently receiving pembrolizumab.
                 No history of diabetes or hypertension. ALT 42, AST 38, creatinine 0.9.
-            """
+            """,
         },
         {
             "label": "Bug Fix 2 — No duplicate Type 2 Diabetes + Diabetes Mellitus",
@@ -415,7 +441,7 @@ def run_tests():
                 58-year-old female with Type 2 Diabetes Mellitus.
                 Currently on Metformin. HbA1c 8.9%, eGFR 72.
                 No prior insulin therapy. No history of cardiovascular disease.
-            """
+            """,
         },
         {
             "label": "Full extraction test — Heart failure patient",
@@ -425,7 +451,7 @@ def run_tests():
                 Currently on lisinopril, warfarin, and metformin.
                 HbA1c 7.2. eGFR 58. Denies any history of stroke.
                 WBC 6.8, hemoglobin 11.2 g/dL.
-            """
+            """,
         },
     ]
 
@@ -433,14 +459,12 @@ def run_tests():
     print("TrialBridge — Day 5: Extractor V2 Bug Fix Tests")
     print("=" * 65)
 
-    all_passed = True
-
     for test in test_notes:
         print(f"\n{'─' * 65}")
         print(f"TEST: {test['label']}")
         print(f"{'─' * 65}")
 
-        profile = extractor.extract(test['note'])
+        profile = extractor.extract(test["note"])
 
         print(f"  Primary diagnosis  : {profile.primary_diagnosis}")
         print(f"  Comorbidities      : {profile.comorbidities}")
@@ -453,21 +477,21 @@ def run_tests():
         print(f"  Query string       : {profile.to_query_string()[:100]}...")
 
         # Assertions
-        if "Bug Fix 1" in test['label']:
-            assert profile.primary_diagnosis == "Breast Cancer", \
+        if "Bug Fix 1" in test["label"]:
+            assert profile.primary_diagnosis == "Breast Cancer", (
                 f"FAIL: Expected 'Breast Cancer', got '{profile.primary_diagnosis}'"
-            assert "hypertension" in profile.negated_conditions, \
+            )
+            assert "hypertension" in profile.negated_conditions, (
                 "FAIL: Hypertension should be negated"
+            )
             print("  PASS — Negated condition not picked as primary diagnosis")
 
-        if "Bug Fix 2" in test['label']:
+        if "Bug Fix 2" in test["label"]:
             conditions = [profile.primary_diagnosis] + profile.comorbidities
-            diabetes_variants = [
-                c for c in conditions
-                if c and "diabetes" in c.lower()
-            ]
-            assert len(diabetes_variants) == 1, \
+            diabetes_variants = [c for c in conditions if c and "diabetes" in c.lower()]
+            assert len(diabetes_variants) == 1, (
                 f"FAIL: Expected 1 diabetes condition, got {diabetes_variants}"
+            )
             print("  PASS — No duplicate diabetes conditions")
 
     print(f"\n{'=' * 65}")

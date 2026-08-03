@@ -109,6 +109,7 @@ async def request_middleware(request: Request, call_next) -> Response:
 
     # Add request context to all log entries within this request
     import structlog
+
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(
         request_id=request_id,

@@ -31,15 +31,17 @@ bearer_scheme = HTTPBearer()
 # -----------------------------------------------
 class TokenPayload(BaseModel):
     """What we store inside the JWT token."""
-    sub: str           # subject — the user ID
-    exp: datetime      # expiry timestamp
-    iat: datetime      # issued at timestamp
-    token_type: str    # "access" or "refresh"
+
+    sub: str  # subject — the user ID
+    exp: datetime  # expiry timestamp
+    iat: datetime  # issued at timestamp
+    token_type: str  # "access" or "refresh"
     scopes: list[str]  # permissions: ["match:read", "match:write"]
 
 
 class TokenResponse(BaseModel):
     """What we return to the client after login."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -186,6 +188,7 @@ def require_scope(scope: str):
         async def ingest(user = Depends(require_scope("admin:write"))):
             ...
     """
+
     async def _check_scope(
         user: TokenPayload = Depends(get_current_user),
     ) -> TokenPayload:

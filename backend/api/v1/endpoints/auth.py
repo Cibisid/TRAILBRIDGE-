@@ -1,6 +1,9 @@
 """TrialBridge — Auth Endpoints (stub for Day 1)"""
+
 from fastapi import APIRouter
+
 router = APIRouter()
+
 
 @router.post("/auth/token")
 async def login():

@@ -1,6 +1,9 @@
 """TrialBridge — Trials Endpoints (stub for Day 1)"""
+
 from fastapi import APIRouter
+
 router = APIRouter()
+
 
 @router.get("/trials")
 async def list_trials():
