@@ -1,0 +1,293 @@
+{
+  "_comment": [
+    "Labeled evaluation set for the eligibility agent.",
+    "",
+    "Cases supply a structured patient profile rather than a raw note, so the",
+    "numbers measure the agent's reasoning and not the NLP extractor's coverage.",
+    "Those are different failure modes and blending them makes both unreadable:",
+    "an agent that correctly says UNKNOWN because the extractor dropped a field",
+    "is behaving properly, and should not be scored as if it had guessed.",
+    "",
+    "Every expected verdict is derived from what the profile actually contains,",
+    "not from what the prose implies. Where a criterion cannot be settled from",
+    "the profile, the expected verdict is UNKNOWN -- those cases carry the most",
+    "weight, because refusing to guess is the property the design claims."
+  ],
+  "cases": [
+    {
+      "id": "t2d-clean-qualify",
+      "description": "Every criterion decidable and satisfied. Baseline that the agent can reach a positive verdict at all.",
+      "nct_id": "SYNTH-001",
+      "profile": {
+        "age": 58,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "comorbidities": ["hypertension"],
+        "negated_conditions": ["insulin therapy"],
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 8.9, "eGFR": 72}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\n  -  Diagnosis of Type 2 Diabetes Mellitus\n\n  -  HbA1c between 7.0% and 10.5%\n\nExclusion Criteria:\n\n  -  Prior insulin therapy\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "INC-2": "MET",
+        "INC-3": "MET",
+        "EXC-1": "NOT_MET"
+      },
+      "expected_status": "QUALIFIES"
+    },
+    {
+      "id": "age-above-maximum",
+      "description": "Age outside the stated range. An unmet inclusion criterion disqualifies.",
+      "nct_id": "SYNTH-002",
+      "profile": {
+        "age": 80,
+        "sex": "male",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 8.1}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\n  -  Diagnosis of Type 2 Diabetes Mellitus\n",
+      "expected_verdicts": {
+        "INC-1": "NOT_MET",
+        "INC-2": "MET"
+      },
+      "expected_status": "EXCLUDED"
+    },
+    {
+      "id": "exclusion-criterion-met",
+      "description": "Patient meets an exclusion criterion, which disqualifies rather than qualifies.",
+      "nct_id": "SYNTH-003",
+      "profile": {
+        "age": 61,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Insulin glargine", "Metformin"],
+        "lab_values": {"HbA1c": 9.4}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\nExclusion Criteria:\n\n  -  Current insulin therapy\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "EXC-1": "MET"
+      },
+      "expected_status": "EXCLUDED"
+    },
+    {
+      "id": "lab-absent-from-record",
+      "description": "The gating lab was never recorded. The agent must report the gap, not assume a normal value.",
+      "nct_id": "SYNTH-004",
+      "profile": {
+        "age": 55,
+        "sex": "male",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 8.2}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\n  -  eGFR greater than or equal to 60 mL/min/1.73m2\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "INC-2": "UNKNOWN"
+      },
+      "expected_status": "UNKNOWN"
+    },
+    {
+      "id": "lab-present-but-undated",
+      "description": "The value is on file but the criterion demands a recency window the record cannot establish. The flagship case: a present number is not automatically a satisfied criterion.",
+      "nct_id": "SYNTH-005",
+      "profile": {
+        "age": 58,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 8.9, "eGFR": 72}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\n  -  eGFR greater than or equal to 60 mL/min/1.73m2 measured within 90 days prior to screening\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "INC-2": "UNKNOWN"
+      },
+      "expected_status": "UNKNOWN"
+    },
+    {
+      "id": "condition-never-mentioned",
+      "description": "An exclusion the record is simply silent about. Silence is not clearance -- this must not resolve to NOT_MET.",
+      "nct_id": "SYNTH-006",
+      "profile": {
+        "age": 47,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 7.8}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\nExclusion Criteria:\n\n  -  Active hepatitis B or hepatitis C infection\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "EXC-1": "UNKNOWN"
+      },
+      "expected_status": "UNKNOWN"
+    },
+    {
+      "id": "condition-explicitly-ruled-out",
+      "description": "The note affirmatively rules the condition out, which does clear the exclusion. Pairs with the case above: the two must not be treated alike.",
+      "nct_id": "SYNTH-007",
+      "profile": {
+        "age": 52,
+        "sex": "male",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "negated_conditions": ["cardiovascular disease"],
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 8.0}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\nExclusion Criteria:\n\n  -  History of cardiovascular disease\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "EXC-1": "NOT_MET"
+      },
+      "expected_status": "QUALIFIES"
+    },
+    {
+      "id": "prior-versus-current-therapy",
+      "description": "Trials routinely gate on prior exposure separately from current use. Collapsing the two flips both verdicts.",
+      "nct_id": "SYNTH-008",
+      "profile": {
+        "age": 63,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "prior_treatments": ["sulfonylurea"],
+        "lab_values": {"HbA1c": 8.5}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Prior treatment with a sulfonylurea\n\nExclusion Criteria:\n\n  -  Currently taking a sulfonylurea\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "EXC-1": "NOT_MET"
+      },
+      "expected_status": "QUALIFIES"
+    },
+    {
+      "id": "sex-restricted-trial",
+      "description": "Sex-restricted enrollment, patient does not match.",
+      "nct_id": "SYNTH-009",
+      "profile": {
+        "age": 44,
+        "sex": "male",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 7.5}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Female patients only\n\n  -  Age 18 to 75 years\n",
+      "expected_verdicts": {
+        "INC-1": "NOT_MET",
+        "INC-2": "MET"
+      },
+      "expected_status": "EXCLUDED"
+    },
+    {
+      "id": "threshold-boundary-inclusive",
+      "description": "Value sits exactly on an inclusive bound. Off-by-one handling on numeric comparison.",
+      "nct_id": "SYNTH-010",
+      "profile": {
+        "age": 18,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 7.0}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 years or older\n\n  -  HbA1c greater than or equal to 7.0%\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "INC-2": "MET"
+      },
+      "expected_status": "QUALIFIES"
+    },
+    {
+      "id": "threshold-boundary-exclusive",
+      "description": "Value sits exactly on a strict bound and therefore fails it.",
+      "nct_id": "SYNTH-011",
+      "profile": {
+        "age": 50,
+        "sex": "male",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 7.0}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  HbA1c strictly greater than 7.0%\n",
+      "expected_verdicts": {
+        "INC-1": "NOT_MET"
+      },
+      "expected_status": "EXCLUDED"
+    },
+    {
+      "id": "comorbidity-satisfies-inclusion",
+      "description": "A required condition present as a comorbidity rather than the primary diagnosis.",
+      "nct_id": "SYNTH-012",
+      "profile": {
+        "age": 66,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "comorbidities": ["hypertension"],
+        "current_medications": ["Metformin", "Lisinopril"],
+        "lab_values": {"HbA1c": 8.3}
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Documented hypertension\n\n  -  Age 18 to 75 years\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "INC-2": "MET"
+      },
+      "expected_status": "QUALIFIES"
+    },
+    {
+      "id": "unspecified-polarity",
+      "description": "Criteria with no inclusion/exclusion header. An unmet rule of unknown polarity cannot disqualify, but must not pass either.",
+      "nct_id": "SYNTH-013",
+      "profile": {
+        "age": 30,
+        "sex": "male",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"],
+        "lab_values": {"HbA1c": 6.2}
+      },
+      "criteria_text": "  -  Age 18 years or older\n  -  HbA1c greater than 7.0%\n",
+      "expected_verdicts": {
+        "UNK-1": "MET",
+        "UNK-2": "NOT_MET"
+      },
+      "expected_status": "UNKNOWN"
+    },
+    {
+      "id": "multiple-gaps-reported",
+      "description": "Two independent missing facts. Both should surface, not just the first.",
+      "nct_id": "SYNTH-014",
+      "profile": {
+        "age": 59,
+        "sex": "female",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"]
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\n  -  HbA1c between 7.0% and 10.5%\n\n  -  Platelet count greater than 100,000 per microliter\n",
+      "expected_verdicts": {
+        "INC-1": "MET",
+        "INC-2": "UNKNOWN",
+        "INC-3": "UNKNOWN"
+      },
+      "expected_status": "UNKNOWN"
+    },
+    {
+      "id": "disqualifier-outranks-gap",
+      "description": "A known disqualifier alongside an unresolvable criterion. The trial is settled -- reporting UNKNOWN would send a coordinator chasing a lab for a trial the patient cannot enter.",
+      "nct_id": "SYNTH-015",
+      "profile": {
+        "age": 90,
+        "sex": "male",
+        "primary_diagnosis": "Type 2 Diabetes",
+        "current_medications": ["Metformin"]
+      },
+      "criteria_text": "Inclusion Criteria:\n\n  -  Age 18 to 75 years\n\n  -  Platelet count greater than 100,000 per microliter\n",
+      "expected_verdicts": {
+        "INC-1": "NOT_MET",
+        "INC-2": "UNKNOWN"
+      },
+      "expected_status": "EXCLUDED"
+    }
+  ]
+}

@@ -23,10 +23,10 @@ jobs:
         run: pip install ruff mypy
 
       - name: Run ruff linter
-        run: ruff check backend/
+        run: ruff check backend/ evaluation/
 
       - name: Run ruff formatter check
-        run: ruff format --check backend/
+        run: ruff format --check backend/ evaluation/
 
   test:
     name: Tests
