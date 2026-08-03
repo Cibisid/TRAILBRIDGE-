@@ -35,15 +35,21 @@ settings = get_settings()
 # pool_pre_ping: test connection before using it (prevents stale connection errors)
 # echo: log every SQL statement (only in development)
 
-engine = create_async_engine(
-    settings.database_url,
-    pool_size=5 if settings.is_development else 20,
-    max_overflow=10,
-    pool_pre_ping=True,
-    echo=settings.is_development,
-    # NullPool in testing so we don't leak connections
-    poolclass=NullPool if settings.app_env == "testing" else None,
-)
+_engine_kwargs: dict[str, Any] = {
+    "pool_pre_ping": True,
+    "echo": settings.is_development,
+}
+
+if settings.app_env == "testing":
+    # NullPool opens a fresh connection per checkout, so the sizing arguments
+    # do not apply to it — passing them alongside poolclass=NullPool raises
+    # TypeError inside create_async_engine, at import time.
+    _engine_kwargs["poolclass"] = NullPool
+else:
+    _engine_kwargs["pool_size"] = 5 if settings.is_development else 20
+    _engine_kwargs["max_overflow"] = 10
+
+engine = create_async_engine(settings.database_url, **_engine_kwargs)
 
 
 # -----------------------------------------------
