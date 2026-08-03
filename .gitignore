@@ -21,11 +21,14 @@ build/
 postgres_data/
 redis_data/
 
-# ML Models (too large for git — use S3)
+# ML model weights (too large for git — use S3)
 *.bin
 *.pt
 *.pkl
-models/
+# Root-level weights directory only. A bare "models/" also matched
+# backend/models/, the SQLAlchemy package that init_db() imports, so the app
+# could not start from a fresh clone.
+/models/
 
 # IDE
 .vscode/
