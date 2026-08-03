@@ -9,3 +9,7 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["backend/tests"]
+# `backend` is a namespace package imported as `backend.*`, so the repo root
+# has to be importable. Without this every test errors with
+# "ModuleNotFoundError: No module named 'backend'" at collection.
+pythonpath = ["."]

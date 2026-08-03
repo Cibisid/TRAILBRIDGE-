@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     # App
     # -------------------------
     app_name: str = "TrialBridge"
-    app_env: Literal["development", "staging", "production"] = "development"
+    # "testing" is what .github/workflows/ci.yml sets; without it every test
+    # run fails validation at import before a single assertion executes.
+    app_env: Literal["development", "testing", "staging", "production"] = "development"
     app_version: str = "0.1.0"
     debug: bool = False
     secret_key: str = Field(min_length=32)
@@ -100,6 +102,20 @@ class Settings(BaseSettings):
     # Anthropic
     # -------------------------
     anthropic_api_key: str = ""
+
+    # -------------------------
+    # Bedrock (eligibility agent)
+    # -------------------------
+    # Bedrock model IDs carry an "anthropic." prefix; the bare first-party ID
+    # is a different platform and will 400 here.
+    bedrock_model_id: str = "anthropic.claude-opus-5"
+    # Effort is the main cost/latency lever. Lower levels hold up well on this
+    # model and the adjudication task is narrow, so medium is the default.
+    bedrock_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    bedrock_max_tokens: int = 8000
+    # Ceiling on tool-call rounds per trial, so a loop that stops converging
+    # costs a bounded number of requests instead of running until it drains.
+    agent_max_iterations: int = 10
 
     # -------------------------
     # ClinicalTrials.gov

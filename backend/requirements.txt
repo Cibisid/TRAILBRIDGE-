@@ -19,7 +19,9 @@ redis[asyncio]==5.1.1
 sentence-transformers==3.1.1   # MiniLM embeddings for semantic search
 
 # --- LLM ---
-anthropic==0.34.2   # Claude API for match explanations
+# The [bedrock] extra pulls in the AWS auth path; AnthropicBedrockMantle (used
+# by the eligibility agent) does not exist before 0.120.
+anthropic[bedrock]==0.120.2   # Claude via Bedrock: explanations + eligibility agent
 
 # --- Task Queue ---
 celery[redis]==5.4.0
