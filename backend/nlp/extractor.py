@@ -20,7 +20,6 @@ Architecture:
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 
 # -----------------------------------------------
@@ -32,9 +31,10 @@ class PatientProfile:
     Structured representation of a patient extracted from a clinical note.
     Every field has a default so partial extraction still produces a valid object.
     """
+
     # Demographics
     age: int | None = None
-    sex: str | None = None                    # "male" | "female" | "unknown"
+    sex: str | None = None  # "male" | "female" | "unknown"
 
     # Diagnoses
     primary_diagnosis: str | None = None
@@ -116,11 +116,12 @@ class AgeExtractor:
       - "58 y/o"
       - "58yo"
     """
+
     PATTERNS = [
-        r'(\d+)\s*[-\s]?\s*year[s]?\s*[-\s]?\s*old',
-        r'(\d+)\s*y/?o\b',
-        r'\bage[d]?\s*:?\s*(\d+)',
-        r'(\d+)\s*years?\s*of\s*age',
+        r"(\d+)\s*[-\s]?\s*year[s]?\s*[-\s]?\s*old",
+        r"(\d+)\s*y/?o\b",
+        r"\bage[d]?\s*:?\s*(\d+)",
+        r"(\d+)\s*years?\s*of\s*age",
     ]
 
     def extract(self, text: str) -> int | None:
@@ -138,27 +139,30 @@ class SexExtractor:
     Extracts patient sex from clinical text.
     Handles: male/female, man/woman, M/F, pronouns (he/she)
     """
+
     MALE_PATTERNS = [
-        r'\bmale\b', r'\bman\b', r'\bgentleman\b',
-        r'\bhe\b', r'\bhis\b', r'\bhim\b',
-        r'\b[Mm]/\d+\b',  # M/58
+        r"\bmale\b",
+        r"\bman\b",
+        r"\bgentleman\b",
+        r"\bhe\b",
+        r"\bhis\b",
+        r"\bhim\b",
+        r"\b[Mm]/\d+\b",  # M/58
     ]
     FEMALE_PATTERNS = [
-        r'\bfemale\b', r'\bwoman\b', r'\blady\b',
-        r'\bshe\b', r'\bher\b', r'\bhers\b',
-        r'\b[Ff]/\d+\b',  # F/58
+        r"\bfemale\b",
+        r"\bwoman\b",
+        r"\blady\b",
+        r"\bshe\b",
+        r"\bher\b",
+        r"\bhers\b",
+        r"\b[Ff]/\d+\b",  # F/58
     ]
 
     def extract(self, text: str) -> str | None:
         text_lower = text.lower()
-        male_score = sum(
-            1 for p in self.MALE_PATTERNS
-            if re.search(p, text_lower)
-        )
-        female_score = sum(
-            1 for p in self.FEMALE_PATTERNS
-            if re.search(p, text_lower)
-        )
+        male_score = sum(1 for p in self.MALE_PATTERNS if re.search(p, text_lower))
+        female_score = sum(1 for p in self.FEMALE_PATTERNS if re.search(p, text_lower))
         if female_score > male_score:
             return "female"
         elif male_score > female_score:
@@ -175,49 +179,50 @@ class LabValueExtractor:
       - "eGFR: 72"
       - "creatinine 1.1 mg/dL"
     """
+
     LAB_PATTERNS = {
         "HbA1c": [
-            r'hba1c\s*[:of]?\s*(\d+\.?\d*)\s*%?',
-            r'hemoglobin\s+a1c\s*[:of]?\s*(\d+\.?\d*)',
-            r'a1c\s*[:of]?\s*(\d+\.?\d*)',
-            r'glycated\s+hemoglobin\s*[:of]?\s*(\d+\.?\d*)',
+            r"hba1c\s*[:of]?\s*(\d+\.?\d*)\s*%?",
+            r"hemoglobin\s+a1c\s*[:of]?\s*(\d+\.?\d*)",
+            r"a1c\s*[:of]?\s*(\d+\.?\d*)",
+            r"glycated\s+hemoglobin\s*[:of]?\s*(\d+\.?\d*)",
         ],
         "eGFR": [
-            r'egfr\s*[:of]?\s*(\d+\.?\d*)',
-            r'estimated\s+gfr\s*[:of]?\s*(\d+\.?\d*)',
-            r'glomerular\s+filtration\s*[:of]?\s*(\d+\.?\d*)',
+            r"egfr\s*[:of]?\s*(\d+\.?\d*)",
+            r"estimated\s+gfr\s*[:of]?\s*(\d+\.?\d*)",
+            r"glomerular\s+filtration\s*[:of]?\s*(\d+\.?\d*)",
         ],
         "creatinine": [
-            r'creatinine\s*[:of]?\s*(\d+\.?\d*)',
-            r'cr\s*[:of]?\s*(\d+\.?\d*)\s*mg',
+            r"creatinine\s*[:of]?\s*(\d+\.?\d*)",
+            r"cr\s*[:of]?\s*(\d+\.?\d*)\s*mg",
         ],
         "ALT": [
-            r'\balt\s*[:of]?\s*(\d+\.?\d*)',
-            r'alanine\s+aminotransferase\s*[:of]?\s*(\d+\.?\d*)',
+            r"\balt\s*[:of]?\s*(\d+\.?\d*)",
+            r"alanine\s+aminotransferase\s*[:of]?\s*(\d+\.?\d*)",
         ],
         "AST": [
-            r'\bast\s*[:of]?\s*(\d+\.?\d*)',
-            r'aspartate\s+aminotransferase\s*[:of]?\s*(\d+\.?\d*)',
+            r"\bast\s*[:of]?\s*(\d+\.?\d*)",
+            r"aspartate\s+aminotransferase\s*[:of]?\s*(\d+\.?\d*)",
         ],
         "hemoglobin": [
-            r'\bhgb\s*[:of]?\s*(\d+\.?\d*)',
-            r'\bhemoglobin\s*[:of]?\s*(\d+\.?\d*)\s*g',
+            r"\bhgb\s*[:of]?\s*(\d+\.?\d*)",
+            r"\bhemoglobin\s*[:of]?\s*(\d+\.?\d*)\s*g",
         ],
         "platelets": [
-            r'platelet[s]?\s*[:of]?\s*(\d+\.?\d*)',
-            r'\bplt\s*[:of]?\s*(\d+\.?\d*)',
+            r"platelet[s]?\s*[:of]?\s*(\d+\.?\d*)",
+            r"\bplt\s*[:of]?\s*(\d+\.?\d*)",
         ],
         "WBC": [
-            r'\bwbc\s*[:of]?\s*(\d+\.?\d*)',
-            r'white\s+blood\s+cell[s]?\s*[:of]?\s*(\d+\.?\d*)',
+            r"\bwbc\s*[:of]?\s*(\d+\.?\d*)",
+            r"white\s+blood\s+cell[s]?\s*[:of]?\s*(\d+\.?\d*)",
         ],
         "blood_pressure_systolic": [
-            r'bp\s*[:of]?\s*(\d+)\s*/\s*\d+',
-            r'blood\s+pressure\s*[:of]?\s*(\d+)\s*/\s*\d+',
+            r"bp\s*[:of]?\s*(\d+)\s*/\s*\d+",
+            r"blood\s+pressure\s*[:of]?\s*(\d+)\s*/\s*\d+",
         ],
         "BMI": [
-            r'\bbmi\s*[:of]?\s*(\d+\.?\d*)',
-            r'body\s+mass\s+index\s*[:of]?\s*(\d+\.?\d*)',
+            r"\bbmi\s*[:of]?\s*(\d+\.?\d*)",
+            r"body\s+mass\s+index\s*[:of]?\s*(\d+\.?\d*)",
         ],
     }
 
@@ -244,31 +249,72 @@ class MedicationExtractor:
     Extracts current medications and prior treatments.
     Uses keyword context to distinguish current vs prior.
     """
+
     CURRENT_CONTEXT = [
-        "currently on", "currently taking", "on ", "taking ",
-        "prescribed", "medications include", "medications:",
-        "is on", "receives", "treated with",
+        "currently on",
+        "currently taking",
+        "on ",
+        "taking ",
+        "prescribed",
+        "medications include",
+        "medications:",
+        "is on",
+        "receives",
+        "treated with",
     ]
 
     PRIOR_CONTEXT = [
-        "prior", "previous", "history of treatment",
-        "previously treated", "received", "underwent",
-        "past treatment", "failed",
+        "prior",
+        "previous",
+        "history of treatment",
+        "previously treated",
+        "received",
+        "underwent",
+        "past treatment",
+        "failed",
     ]
 
     # Common drug names and classes — expand this in Week 2
     KNOWN_DRUGS = [
-        "metformin", "insulin", "glipizide", "glimepiride", "sitagliptin",
-        "empagliflozin", "liraglutide", "ozempic", "wegovy", "jardiance",
-        "lisinopril", "amlodipine", "atorvastatin", "simvastatin",
-        "aspirin", "warfarin", "apixaban", "rivaroxaban",
-        "prednisone", "dexamethasone", "methylprednisolone",
-        "carboplatin", "cisplatin", "paclitaxel", "docetaxel",
-        "pembrolizumab", "nivolumab", "bevacizumab",
-        "tamoxifen", "letrozole", "anastrozole",
-        "methotrexate", "hydroxychloroquine",
-        "sertraline", "fluoxetine", "escitalopram",
-        "omeprazole", "pantoprazole", "levothyroxine",
+        "metformin",
+        "insulin",
+        "glipizide",
+        "glimepiride",
+        "sitagliptin",
+        "empagliflozin",
+        "liraglutide",
+        "ozempic",
+        "wegovy",
+        "jardiance",
+        "lisinopril",
+        "amlodipine",
+        "atorvastatin",
+        "simvastatin",
+        "aspirin",
+        "warfarin",
+        "apixaban",
+        "rivaroxaban",
+        "prednisone",
+        "dexamethasone",
+        "methylprednisolone",
+        "carboplatin",
+        "cisplatin",
+        "paclitaxel",
+        "docetaxel",
+        "pembrolizumab",
+        "nivolumab",
+        "bevacizumab",
+        "tamoxifen",
+        "letrozole",
+        "anastrozole",
+        "methotrexate",
+        "hydroxychloroquine",
+        "sertraline",
+        "fluoxetine",
+        "escitalopram",
+        "omeprazole",
+        "pantoprazole",
+        "levothyroxine",
     ]
 
     def extract(self, text: str) -> tuple[list[str], list[str]]:
@@ -281,13 +327,10 @@ class MedicationExtractor:
             if drug in text_lower:
                 # Determine context
                 idx = text_lower.index(drug)
-                context_window = text_lower[max(0, idx-60):idx]
+                context_window = text_lower[max(0, idx - 60) : idx]
 
                 is_prior = any(p in context_window for p in self.PRIOR_CONTEXT)
-                is_negated = any(
-                    n in context_window
-                    for n in ["no ", "not ", "without ", "never "]
-                )
+                is_negated = any(n in context_window for n in ["no ", "not ", "without ", "never "])
 
                 if is_negated:
                     continue  # Skip negated medications
@@ -308,23 +351,38 @@ class NegationExtractor:
     This is critical for matching — a negated condition must NOT
     be treated as a present condition.
     """
+
     NEGATION_TRIGGERS = [
-        r'no\s+(?:history\s+of\s+|known\s+)?(.+?)(?:\.|,|;|$)',
-        r'denies\s+(.+?)(?:\.|,|;|$)',
-        r'without\s+(.+?)(?:\.|,|;|$)',
-        r'never\s+(?:had\s+|diagnosed\s+with\s+)?(.+?)(?:\.|,|;|$)',
-        r'absence\s+of\s+(.+?)(?:\.|,|;|$)',
-        r'negative\s+for\s+(.+?)(?:\.|,|;|$)',
+        r"no\s+(?:history\s+of\s+|known\s+)?(.+?)(?:\.|,|;|$)",
+        r"denies\s+(.+?)(?:\.|,|;|$)",
+        r"without\s+(.+?)(?:\.|,|;|$)",
+        r"never\s+(?:had\s+|diagnosed\s+with\s+)?(.+?)(?:\.|,|;|$)",
+        r"absence\s+of\s+(.+?)(?:\.|,|;|$)",
+        r"negative\s+for\s+(.+?)(?:\.|,|;|$)",
     ]
 
     # Medical conditions to look for in negated context
     CONDITIONS = [
-        "hypertension", "diabetes", "cancer", "heart disease",
-        "cardiovascular disease", "stroke", "renal disease",
-        "liver disease", "hepatitis", "hiv", "tuberculosis",
-        "seizures", "epilepsy", "depression", "anxiety",
-        "insulin therapy", "chemotherapy", "radiation",
-        "surgery", "transplant",
+        "hypertension",
+        "diabetes",
+        "cancer",
+        "heart disease",
+        "cardiovascular disease",
+        "stroke",
+        "renal disease",
+        "liver disease",
+        "hepatitis",
+        "hiv",
+        "tuberculosis",
+        "seizures",
+        "epilepsy",
+        "depression",
+        "anxiety",
+        "insulin therapy",
+        "chemotherapy",
+        "radiation",
+        "surgery",
+        "transplant",
     ]
 
     def extract(self, text: str) -> list[str]:
@@ -348,27 +406,46 @@ class DiagnosisExtractor:
     Extracts primary diagnosis and comorbidities.
     Uses pattern matching on common diagnostic phrases.
     """
+
     DIAGNOSIS_PATTERNS = [
-        r'diagnosed\s+with\s+([A-Za-z\s]+?)(?:\.|,|;|\band\b)',
-        r'history\s+of\s+([A-Za-z\s]+?)(?:\.|,|;|\band\b)',
-        r'known\s+([A-Za-z\s]+?)(?:patient|,|\.|;)',
-        r'presents?\s+with\s+([A-Za-z\s]+?)(?:\.|,|;)',
-        r'has\s+([A-Za-z\s]+?)(?:\.|,|;|\band\b)',
-        r'suffering\s+from\s+([A-Za-z\s]+?)(?:\.|,|;)',
+        r"diagnosed\s+with\s+([A-Za-z\s]+?)(?:\.|,|;|\band\b)",
+        r"history\s+of\s+([A-Za-z\s]+?)(?:\.|,|;|\band\b)",
+        r"known\s+([A-Za-z\s]+?)(?:patient|,|\.|;)",
+        r"presents?\s+with\s+([A-Za-z\s]+?)(?:\.|,|;)",
+        r"has\s+([A-Za-z\s]+?)(?:\.|,|;|\band\b)",
+        r"suffering\s+from\s+([A-Za-z\s]+?)(?:\.|,|;)",
     ]
 
     KNOWN_CONDITIONS = [
-        "type 2 diabetes", "type 1 diabetes", "diabetes mellitus",
-        "hypertension", "heart failure", "atrial fibrillation",
-        "coronary artery disease", "myocardial infarction",
-        "chronic kidney disease", "end stage renal disease",
-        "breast cancer", "lung cancer", "colon cancer", "prostate cancer",
-        "alzheimer disease", "parkinson disease", "multiple sclerosis",
-        "rheumatoid arthritis", "systemic lupus erythematosus",
-        "chronic obstructive pulmonary disease", "asthma",
-        "hypothyroidism", "hyperthyroidism",
-        "depression", "anxiety disorder", "bipolar disorder",
-        "obesity", "hyperlipidemia", "dyslipidemia",
+        "type 2 diabetes",
+        "type 1 diabetes",
+        "diabetes mellitus",
+        "hypertension",
+        "heart failure",
+        "atrial fibrillation",
+        "coronary artery disease",
+        "myocardial infarction",
+        "chronic kidney disease",
+        "end stage renal disease",
+        "breast cancer",
+        "lung cancer",
+        "colon cancer",
+        "prostate cancer",
+        "alzheimer disease",
+        "parkinson disease",
+        "multiple sclerosis",
+        "rheumatoid arthritis",
+        "systemic lupus erythematosus",
+        "chronic obstructive pulmonary disease",
+        "asthma",
+        "hypothyroidism",
+        "hyperthyroidism",
+        "depression",
+        "anxiety disorder",
+        "bipolar disorder",
+        "obesity",
+        "hyperlipidemia",
+        "dyslipidemia",
     ]
 
     def extract(self, text: str) -> tuple[str | None, list[str]]:
@@ -419,9 +496,7 @@ class PatientProfileExtractor:
         Takes raw clinical note text, returns structured PatientProfile.
         """
         if not note or not note.strip():
-            return PatientProfile(
-                extraction_warnings=["Empty note provided"]
-            )
+            return PatientProfile(extraction_warnings=["Empty note provided"])
 
         profile = PatientProfile()
         warnings = []
@@ -472,7 +547,7 @@ def run_tests():
                 Currently on Metformin 1000mg twice daily. HbA1c 8.9%, eGFR 72 ml/min.
                 No prior insulin therapy. No history of cardiovascular disease.
                 Blood pressure 138/82. BMI 31.2. Denies chest pain or shortness of breath.
-            """
+            """,
         },
         {
             "label": "Cancer patient with complex history",
@@ -481,7 +556,7 @@ def run_tests():
                 Previously treated with carboplatin. Currently receiving pembrolizumab.
                 No history of diabetes or hypertension. ALT 42, AST 38, creatinine 0.9.
                 ECOG performance status 1. No prior radiation therapy.
-            """
+            """,
         },
         {
             "label": "Heart failure patient",
@@ -490,7 +565,7 @@ def run_tests():
                 History of hypertension and atrial fibrillation. Currently on lisinopril,
                 warfarin, and metformin. HbA1c 7.2. eGFR 58. Denies any history of stroke.
                 Never had cardiac surgery. WBC 6.8, hemoglobin 11.2 g/dL.
-            """
+            """,
         },
     ]
 
@@ -503,9 +578,9 @@ def run_tests():
         print(f"TEST: {test['label']}")
         print(f"{'─' * 65}")
         print(f"INPUT NOTE:\n{test['note'].strip()}")
-        print(f"\nEXTRACTED PROFILE:")
+        print("\nEXTRACTED PROFILE:")
 
-        profile = extractor.extract(test['note'])
+        profile = extractor.extract(test["note"])
 
         print(f"  Age                : {profile.age}")
         print(f"  Sex                : {profile.sex}")
@@ -517,7 +592,7 @@ def run_tests():
         print(f"  Lab values         : {profile.lab_values}")
         print(f"  Confidence score   : {profile.extraction_confidence:.0%}")
         print(f"  Warnings           : {profile.extraction_warnings}")
-        print(f"\n  QUERY STRING (fed into BioBERT in Week 3):")
+        print("\n  QUERY STRING (fed into BioBERT in Week 3):")
         print(f"  → {profile.to_query_string()}")
 
     print(f"\n{'=' * 65}")

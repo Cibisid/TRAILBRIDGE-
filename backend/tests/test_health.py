@@ -4,18 +4,22 @@ Day 1 test: verify the health endpoint returns 200.
 More tests added each day as features are built.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
 
 
 @pytest.fixture
 def client():
     """Provide a test client for the FastAPI app."""
     # We patch init_db and close_db so tests don't need a real database
-    with patch("backend.main.init_db", new_callable=AsyncMock), \
-         patch("backend.main.close_db", new_callable=AsyncMock):
+    with (
+        patch("backend.main.init_db", new_callable=AsyncMock),
+        patch("backend.main.close_db", new_callable=AsyncMock),
+    ):
         from backend.main import app
+
         with TestClient(app) as c:
             yield c
 

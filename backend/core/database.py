@@ -11,7 +11,7 @@ This is how production APIs are built.
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -70,6 +70,7 @@ class Base(DeclarativeBase):
     All SQLAlchemy ORM models inherit from this.
     Provides type-aware column mapping and metadata.
     """
+
     pass
 
 
@@ -100,7 +101,8 @@ async def init_db() -> None:
         # Enable pgvector before creating tables
         await enable_pgvector(conn)
         # Import all models so Base knows about them
-        from backend.models import Trial, PatientProfile, MatchResult, AuditLog  # noqa: F401
+        from backend.models import AuditLog, MatchResult, PatientProfile, Trial  # noqa: F401
+
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created/verified")
 

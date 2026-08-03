@@ -9,15 +9,17 @@ A score of 0.673 means nothing to a clinician.
 "This trial matches because..." is actionable.
 """
 
-import os
-import anthropic
 import asyncio
+import os
 from dataclasses import dataclass
-from dotenv import load_dotenv
-load_dotenv()
 
-from backend.nlp.extractor_v2 import PatientProfile
+import anthropic
+from dotenv import load_dotenv
+
 from backend.matching.matcher import TrialMatch
+from backend.nlp.extractor_v2 import PatientProfile
+
+load_dotenv()
 
 
 # -----------------------------------------------
@@ -27,10 +29,10 @@ from backend.matching.matcher import TrialMatch
 class TrialExplanation:
     nct_id: str
     eligibility_status: str
-    summary: str           # 2-3 sentence plain English explanation
-    why_matches: list[str] # Specific reasons this trial fits
-    flags: list[str]       # What to verify before enrolling
-    recommendation: str    # One-line actionable recommendation
+    summary: str  # 2-3 sentence plain English explanation
+    why_matches: list[str]  # Specific reasons this trial fits
+    flags: list[str]  # What to verify before enrolling
+    recommendation: str  # One-line actionable recommendation
 
 
 # -----------------------------------------------
@@ -88,11 +90,11 @@ PATIENT PROFILE:
 - Age: {patient.age}
 - Sex: {patient.sex}
 - Primary Diagnosis: {patient.primary_diagnosis}
-- Comorbidities: {', '.join(patient.comorbidities) if patient.comorbidities else 'None'}
-- Current Medications: {', '.join(patient.current_medications) if patient.current_medications else 'None'}
-- Prior Treatments: {', '.join(patient.prior_treatments) if patient.prior_treatments else 'None'}
-- Lab Values: {patient.lab_values if patient.lab_values else 'Not provided'}
-- Conditions Patient Does NOT Have: {', '.join(patient.negated_conditions) if patient.negated_conditions else 'None'}
+- Comorbidities: {", ".join(patient.comorbidities) if patient.comorbidities else "None"}
+- Current Medications: {", ".join(patient.current_medications) if patient.current_medications else "None"}
+- Prior Treatments: {", ".join(patient.prior_treatments) if patient.prior_treatments else "None"}
+- Lab Values: {patient.lab_values if patient.lab_values else "Not provided"}
+- Conditions Patient Does NOT Have: {", ".join(patient.negated_conditions) if patient.negated_conditions else "None"}
 
 MATCHED TRIAL:
 - NCT ID: {match.nct_id}
@@ -100,11 +102,11 @@ MATCHED TRIAL:
 - Status: {match.status}
 - Phase: {match.phase}
 - Sponsor: {match.sponsor}
-- Conditions Studied: {', '.join(match.conditions) if match.conditions else 'Not specified'}
+- Conditions Studied: {", ".join(match.conditions) if match.conditions else "Not specified"}
 - Eligibility Status: {match.eligibility_status}
-- Inclusion Criteria Met: {', '.join(match.inclusion_met) if match.inclusion_met else 'None confirmed'}
-- Exclusion Flags: {', '.join(match.exclusion_flags) if match.exclusion_flags else 'None'}
-- Needs Verification: {', '.join(match.needs_verification) if match.needs_verification else 'None'}
+- Inclusion Criteria Met: {", ".join(match.inclusion_met) if match.inclusion_met else "None confirmed"}
+- Exclusion Flags: {", ".join(match.exclusion_flags) if match.exclusion_flags else "None"}
+- Needs Verification: {", ".join(match.needs_verification) if match.needs_verification else "None"}
 - Match Scores: Semantic {match.semantic_score:.2f}, Eligibility {match.eligibility_score:.2f}, Composite {match.composite_score:.2f}
 
 Write a clinical explanation in this exact JSON format:
@@ -126,6 +128,7 @@ Return only valid JSON, no other text."""
             )
 
             import json
+
             content = response.content[0].text.strip()
             # Clean up any markdown code blocks
             content = content.replace("```json", "").replace("```", "").strip()
@@ -140,7 +143,7 @@ Return only valid JSON, no other text."""
                 recommendation=data.get("recommendation", ""),
             )
 
-        except Exception as e:
+        except Exception:
             # Fall back to rule-based if Claude call fails
             return self._explain_rule_based(patient, match)
 
@@ -179,10 +182,12 @@ Return only valid JSON, no other text."""
                 f"The patient meets {len(match.inclusion_met)} confirmed eligibility criteria."
             )
             recommendation = (
-                f"Review full eligibility criteria for {match.nct_id} "
-                f"and consider enrolling if {len(flags)} remaining items are confirmed."
-            ) if flags else (
-                f"Strong candidate for enrollment — review full protocol for {match.nct_id}."
+                (
+                    f"Review full eligibility criteria for {match.nct_id} "
+                    f"and consider enrolling if {len(flags)} remaining items are confirmed."
+                )
+                if flags
+                else (f"Strong candidate for enrollment — review full protocol for {match.nct_id}.")
             )
 
         elif match.eligibility_status == "LIKELY_ELIGIBLE":
@@ -198,7 +203,8 @@ Return only valid JSON, no other text."""
 
         elif match.eligibility_status == "INELIGIBLE":
             exclusion_reason = (
-                match.exclusion_flags[0] if match.exclusion_flags
+                match.exclusion_flags[0]
+                if match.exclusion_flags
                 else "one or more eligibility criteria"
             )
             summary = (
@@ -209,8 +215,8 @@ Return only valid JSON, no other text."""
 
         else:
             summary = (
-                f"This trial requires manual review to determine eligibility. "
-                f"Insufficient information to make an automated determination."
+                "This trial requires manual review to determine eligibility. "
+                "Insufficient information to make an automated determination."
             )
             recommendation = f"Manual eligibility review required for {match.nct_id}."
 
@@ -228,19 +234,22 @@ Return only valid JSON, no other text."""
 # Test
 # -----------------------------------------------
 async def run_test():
-    import asyncpg
     import sys
     from pathlib import Path
+
+    import asyncpg
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-    DB_URL = "postgresql://trialbridge_user:devpassword@localhost:5432/trialbridge"
+    db_url = "postgresql://trialbridge_user:devpassword@localhost:5432/trialbridge"
 
     print("=" * 65)
     print("TrialBridge — Day 11: Explanation Engine Test")
     print("=" * 65)
 
-    conn = await asyncpg.connect(DB_URL)
+    conn = await asyncpg.connect(db_url)
     from backend.matching.matcher import TrialMatchingEngine
+
     engine = TrialMatchingEngine()
     explainer = MatchExplainer()
 
@@ -266,17 +275,17 @@ async def run_test():
         print(f"[{i}] {match.nct_id} — {explanation.eligibility_status}")
         print(f"    Title: {match.title[:60]}")
         print(f"    Composite score: {match.composite_score:.3f}")
-        print(f"\n    EXPLANATION:")
+        print("\n    EXPLANATION:")
         print(f"    {explanation.summary}")
         if explanation.why_matches:
-            print(f"\n    WHY IT MATCHES:")
+            print("\n    WHY IT MATCHES:")
             for reason in explanation.why_matches:
                 print(f"    ✅ {reason}")
         if explanation.flags:
-            print(f"\n    VERIFY BEFORE ENROLLING:")
+            print("\n    VERIFY BEFORE ENROLLING:")
             for flag in explanation.flags:
                 print(f"    ⚠️  {flag}")
-        print(f"\n    RECOMMENDATION:")
+        print("\n    RECOMMENDATION:")
         print(f"    → {explanation.recommendation}")
 
     await conn.close()

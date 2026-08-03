@@ -11,10 +11,8 @@ because their vectors are close in 768-dimensional space.
 
 import asyncio
 import time
-from pathlib import Path
 
 import asyncpg
-import numpy as np
 
 DB_URL = "postgresql://trialbridge_user:devpassword@localhost:5432/trialbridge"
 
@@ -43,8 +41,13 @@ def build_trial_text(trial: dict) -> str:
 
     if trial.get("conditions"):
         import json
+
         try:
-            conditions = json.loads(trial["conditions"]) if isinstance(trial["conditions"], str) else trial["conditions"]
+            conditions = (
+                json.loads(trial["conditions"])
+                if isinstance(trial["conditions"], str)
+                else trial["conditions"]
+            )
             if conditions:
                 parts.append("Conditions: " + ", ".join(conditions[:5]))
         except Exception:
@@ -73,6 +76,7 @@ async def embed_all_trials():
     print(f"\nLoading model: {MODEL_NAME}")
     print("(First run downloads ~90MB — subsequent runs are instant)")
     from sentence_transformers import SentenceTransformer
+
     model = SentenceTransformer(MODEL_NAME)
     print(f"Model loaded. Embedding dimension: {model.get_sentence_embedding_dimension()}")
 
@@ -114,7 +118,7 @@ async def embed_all_trials():
     start_time = time.time()
 
     for i in range(0, total, BATCH_SIZE):
-        batch = rows[i:i + BATCH_SIZE]
+        batch = rows[i : i + BATCH_SIZE]
 
         # Build text for each trial in batch
         texts = []
@@ -135,7 +139,8 @@ async def embed_all_trials():
             # Store each embedding in the database
             for j, (row, embedding, text) in enumerate(zip(batch, embeddings, texts)):
                 try:
-                    await conn.execute("""
+                    await conn.execute(
+                        """
                         UPDATE trials
                         SET embedding = $1::vector,
                             embedding_text = $2,
@@ -147,7 +152,7 @@ async def embed_all_trials():
                         row["id"],
                     )
                     embedded += 1
-                except Exception as e:
+                except Exception:
                     failed += 1
 
         except Exception as e:
@@ -182,9 +187,7 @@ async def embed_all_trials():
         print(f"Index creation note: {e}")
 
     # Final stats
-    embedded_count = await conn.fetchval(
-        "SELECT COUNT(*) FROM trials WHERE embedding IS NOT NULL"
-    )
+    embedded_count = await conn.fetchval("SELECT COUNT(*) FROM trials WHERE embedding IS NOT NULL")
 
     print("\n" + "=" * 60)
     print("Embedding pipeline complete!")
@@ -192,7 +195,7 @@ async def embed_all_trials():
     print(f"Failed              : {failed}")
     print(f"Total in DB         : {embedded_count:,}")
     print(f"Time taken          : {elapsed:.1f}s")
-    print(f"Rate                : {embedded/elapsed:.0f} trials/sec")
+    print(f"Rate                : {embedded / elapsed:.0f} trials/sec")
     print("=" * 60)
 
     # Test: find similar trials to a sample query
@@ -204,7 +207,8 @@ async def embed_all_trials():
         normalize_embeddings=True,
     )[0]
 
-    similar = await conn.fetch("""
+    similar = await conn.fetch(
+        """
         SELECT nct_id, status,
                LEFT(title, 70) as short_title,
                1 - (embedding <=> $1::vector) as similarity
@@ -212,15 +216,13 @@ async def embed_all_trials():
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> $1::vector
         LIMIT 5
-    """, str(query_embedding.tolist()))
+    """,
+        str(query_embedding.tolist()),
+    )
 
     print("\nTop 5 semantically similar trials:")
     for row in similar:
-        print(
-            f"  {row['nct_id']} | "
-            f"similarity: {row['similarity']:.3f} | "
-            f"{row['short_title']}"
-        )
+        print(f"  {row['nct_id']} | similarity: {row['similarity']:.3f} | {row['short_title']}")
 
     await conn.close()
     print("\nDay 8 complete. Semantic search is ready.")

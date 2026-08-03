@@ -15,6 +15,12 @@ pgvector==0.3.2          # pgvector SQLAlchemy integration
 # --- Cache ---
 redis[asyncio]==5.1.1
 
+# --- ML / Embeddings ---
+sentence-transformers==3.1.1   # MiniLM embeddings for semantic search
+
+# --- LLM ---
+anthropic==0.34.2   # Claude API for match explanations
+
 # --- Task Queue ---
 celery[redis]==5.4.0
 
@@ -26,6 +32,7 @@ passlib[bcrypt]==1.7.4
 # --- Configuration ---
 pydantic==2.9.2
 pydantic-settings==2.5.2
+python-dotenv==1.0.1
 
 # --- Logging ---
 structlog==24.4.0

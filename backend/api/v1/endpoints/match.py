@@ -28,7 +28,7 @@ class MatchRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "note": "58-year-old female with Type 2 Diabetes. HbA1c 8.9%, eGFR 72. Currently on Metformin. No prior insulin therapy.",
-                "n_results": 10
+                "n_results": 10,
             }
         }
 
@@ -104,10 +104,7 @@ async def match_patient(
 
         return MatchResponse(
             patient_profile=profile.to_dict(),
-            matches=[
-                TrialMatchResult(**m.to_dict())
-                for m in matches
-            ],
+            matches=[TrialMatchResult(**m.to_dict()) for m in matches],
             total_matches=len(matches),
             query_string=profile.to_query_string(),
         )
