@@ -15,15 +15,19 @@ the note doesn't contain one. So a criterion that hinges on an unrecorded lab
 cannot be quietly resolved from a guessed value — the missing data is the tool's
 literal response, and UNKNOWN is the only verdict available.
 
-Runs on Claude via Amazon Bedrock. Thinking is deliberately left on: with
-thinking disabled, this model can emit a tool call as plain text, which in a
-loop like this one would look like a completed turn where nothing ran.
+Runs on Claude through either the Anthropic API or Amazon Bedrock — set
+`llm_provider`. Both expose the same messages surface, so the loop below is
+identical either way.
+
+Thinking is deliberately left on: with thinking disabled, this model can emit a
+tool call as plain text, which in a loop like this one would look like a
+completed turn where nothing actually ran.
 """
 
 import asyncio
 from dataclasses import dataclass, field
 
-from anthropic import AsyncAnthropicBedrockMantle
+from anthropic import AsyncAnthropic, AsyncAnthropicBedrockMantle
 
 from backend.agent.criteria import EXCLUSION, INCLUSION, Criterion
 from backend.agent.patient_store import PatientDataStore
@@ -230,20 +234,35 @@ class EligibilityAgent:
         region: str | None = None,
         effort: str | None = None,
         max_iterations: int | None = None,
+        provider: str | None = None,
     ):
         settings = get_settings()
-        self.model = model or settings.bedrock_model_id
+        self.provider = provider or settings.llm_provider
+        self.model = model or (
+            settings.bedrock_model_id if self.provider == "bedrock" else settings.anthropic_model_id
+        )
         self.region = region or settings.aws_region
         self.effort = effort or settings.bedrock_effort
         self.max_iterations = max_iterations or settings.agent_max_iterations
         self.max_tokens = settings.bedrock_max_tokens
-        self._client: AsyncAnthropicBedrockMantle | None = None
+        self._client: AsyncAnthropic | AsyncAnthropicBedrockMantle | None = None
 
     @property
-    def client(self) -> AsyncAnthropicBedrockMantle:
-        """Lazy so importing this module never requires AWS credentials."""
+    def client(self) -> AsyncAnthropic | AsyncAnthropicBedrockMantle:
+        """
+        Built on first use, not at import, so importing this module never
+        requires credentials — which is what lets the unit tests run in CI
+        with no key present.
+
+        Both clients expose the same messages.create surface, so nothing below
+        this property knows or cares which one it got.
+        """
         if self._client is None:
-            self._client = AsyncAnthropicBedrockMantle(aws_region=self.region)
+            if self.provider == "bedrock":
+                self._client = AsyncAnthropicBedrockMantle(aws_region=self.region)
+            else:
+                # Reads ANTHROPIC_API_KEY from the environment.
+                self._client = AsyncAnthropic()
         return self._client
 
     # -------------------------------------------
