@@ -104,8 +104,13 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # -------------------------
-    # Bedrock (eligibility agent)
+    # Eligibility agent LLM
     # -------------------------
+    # "anthropic" needs only ANTHROPIC_API_KEY. "bedrock" routes through AWS
+    # and uses aws_region plus the standard AWS credential chain. Everything
+    # downstream is identical, so this is a one-line switch either way.
+    llm_provider: Literal["anthropic", "bedrock"] = "anthropic"
+    anthropic_model_id: str = "claude-opus-5"
     # Bedrock model IDs carry an "anthropic." prefix; the bare first-party ID
     # is a different platform and will 400 here.
     bedrock_model_id: str = "anthropic.claude-opus-5"
